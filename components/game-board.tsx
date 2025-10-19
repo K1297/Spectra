@@ -65,21 +65,27 @@ export function GameBoard({ account }: GameBoardProps) {
 
     try {
       console.log("[v0] handleStartGame called with stake:", stakeAmount)
+      if (!stakeAmount || Number.parseFloat(stakeAmount) < 0.01) {
+        throw new Error("Stake must be at least 0.01 STT")
+      }
+
       await startGame(stakeAmount)
 
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      await new Promise((resolve) => setTimeout(resolve, 3000))
 
       const state = await getGameState()
       console.log("[v0] Game state after start:", state)
 
       if (state?.active) {
         setGameState(state)
+        setError(null)
       } else {
-        setError("Game failed to start. Please try again.")
+        setError("Game failed to start. Please check the console for details and try again.")
       }
     } catch (err: any) {
       console.error("[v0] Error in handleStartGame:", err)
-      setError(err.message || "Failed to start game. Please check your connection and try again.")
+      const errorMsg = err.message || "Failed to start game. Please check your connection and try again."
+      setError(errorMsg)
     } finally {
       setIsLoading(false)
     }

@@ -26,13 +26,32 @@ export function useSpectraContract(account: string | null) {
 
       try {
         console.log("[v0] Starting game with stake:", stakeAmount)
+        console.log("[v0] Account:", account)
+        console.log("[v0] Contract address:", SPECTRA_CONTRACT_ADDRESS)
+
         const walletClient = getWalletClient(account as `0x${string}`)
+        const stakeInWei = parseEther(stakeAmount)
+        console.log("[v0] Stake in Wei:", stakeInWei.toString())
+
+        try {
+          const gasEstimate = await publicClient.estimateContractGas({
+            address: SPECTRA_CONTRACT_ADDRESS as `0x${string}`,
+            abi: SPECTRA_ABI,
+            functionName: "startGame",
+            account: account as `0x${string}`,
+            value: stakeInWei,
+          })
+          console.log("[v0] Gas estimate:", gasEstimate.toString())
+        } catch (gasErr: any) {
+          console.error("[v0] Gas estimation error:", gasErr)
+          // Continue anyway, let the transaction fail with more details
+        }
 
         const hash = await walletClient.writeContract({
           address: SPECTRA_CONTRACT_ADDRESS as `0x${string}`,
           abi: SPECTRA_ABI,
           functionName: "startGame",
-          value: parseEther(stakeAmount),
+          value: stakeInWei,
         })
 
         console.log("[v0] Transaction hash:", hash)
@@ -46,10 +65,14 @@ export function useSpectraContract(account: string | null) {
         return receipt
       } catch (err: any) {
         console.error("[v0] Error starting game:", err)
+        console.error("[v0] Full error object:", JSON.stringify(err, null, 2))
 
         let errorMsg = err.message || "Failed to start game"
 
-        if (errorMsg.includes("eth_chainId")) {
+        if (errorMsg.includes("reverted")) {
+          errorMsg =
+            "Contract rejected the transaction. This may be due to: insufficient balance, contract issue, or network problem. Please check the contract on the explorer."
+        } else if (errorMsg.includes("eth_chainId")) {
           errorMsg = "Network connection failed. Please check your internet connection and try again."
         } else if (errorMsg.includes("insufficient funds")) {
           errorMsg = "Insufficient STT balance. Please get more STT from the faucet."
@@ -57,6 +80,8 @@ export function useSpectraContract(account: string | null) {
           errorMsg = "Transaction rejected by user."
         } else if (errorMsg.includes("timeout")) {
           errorMsg = "Transaction took too long. Please try again."
+        } else if (errorMsg.includes("gas")) {
+          errorMsg = "Gas estimation failed. Please try again or check your balance."
         }
 
         setError(errorMsg)
@@ -103,6 +128,8 @@ export function useSpectraContract(account: string | null) {
           errorMsg = "Network connection failed. Please check your internet connection."
         } else if (errorMsg.includes("timeout")) {
           errorMsg = "Transaction took too long. Please try again."
+        } else if (errorMsg.includes("reverted")) {
+          errorMsg = "Game ended or invalid color choice."
         }
 
         setError(errorMsg)
