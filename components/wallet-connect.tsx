@@ -43,22 +43,26 @@ export function WalletConnect({ onConnect, onConnecting }: WalletConnectProps) {
       } catch (switchError: any) {
         // Chain not added, add it
         if (switchError.code === 4902) {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: SOMNIA_CHAIN_ID,
-                chainName: "Somnia Testnet",
-                rpcUrls: ["https://dream-rpc.somnia.network"],
-                nativeCurrency: {
-                  name: "Somnia Token",
-                  symbol: "STT",
-                  decimals: 18,
+          try {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [
+                {
+                  chainId: SOMNIA_CHAIN_ID,
+                  chainName: "Somnia Testnet",
+                  rpcUrls: ["https://dream-rpc.somnia.network"],
+                  nativeCurrency: {
+                    name: "Somnia Token",
+                    symbol: "STT",
+                    decimals: 18,
+                  },
+                  blockExplorerUrls: ["https://shannon-explorer.somnia.network"],
                 },
-                blockExplorerUrls: ["https://shannon-explorer.somnia.network"],
-              },
-            ],
-          })
+              ],
+            })
+          } catch (addError: any) {
+            throw new Error(`Failed to add Somnia network: ${addError.message}`)
+          }
         } else {
           throw switchError
         }
@@ -66,7 +70,7 @@ export function WalletConnect({ onConnect, onConnecting }: WalletConnectProps) {
 
       onConnect(accounts[0])
     } catch (err: any) {
-      console.error("Connection error:", err)
+      console.error("[v0] Connection error:", err)
       setError(err.message || "Failed to connect wallet")
     } finally {
       setIsLoading(false)

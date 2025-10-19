@@ -25,6 +25,7 @@ export function useSpectraContract(account: string | null) {
       setError(null)
 
       try {
+        console.log("[v0] Starting game with stake:", stakeAmount)
         const walletClient = getWalletClient(account as `0x${string}`)
 
         const hash = await walletClient.writeContract({
@@ -36,15 +37,29 @@ export function useSpectraContract(account: string | null) {
 
         console.log("[v0] Transaction hash:", hash)
 
-        // Wait for transaction
-        const receipt = await publicClient.waitForTransactionReceipt({ hash })
-        console.log("[v0] Transaction confirmed:", receipt)
+        const receipt = await Promise.race([
+          publicClient.waitForTransactionReceipt({ hash }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Transaction confirmation timeout")), 60000)),
+        ])
 
+        console.log("[v0] Transaction confirmed:", receipt)
         return receipt
       } catch (err: any) {
-        const errorMsg = err.message || "Failed to start game"
-        setError(errorMsg)
         console.error("[v0] Error starting game:", err)
+
+        let errorMsg = err.message || "Failed to start game"
+
+        if (errorMsg.includes("eth_chainId")) {
+          errorMsg = "Network connection failed. Please check your internet connection and try again."
+        } else if (errorMsg.includes("insufficient funds")) {
+          errorMsg = "Insufficient STT balance. Please get more STT from the faucet."
+        } else if (errorMsg.includes("user rejected")) {
+          errorMsg = "Transaction rejected by user."
+        } else if (errorMsg.includes("timeout")) {
+          errorMsg = "Transaction took too long. Please try again."
+        }
+
+        setError(errorMsg)
         throw err
       } finally {
         setLoading(false)
@@ -61,6 +76,7 @@ export function useSpectraContract(account: string | null) {
       setError(null)
 
       try {
+        console.log("[v0] Choosing color:", colorId)
         const walletClient = getWalletClient(account as `0x${string}`)
 
         const hash = await walletClient.writeContract({
@@ -72,14 +88,24 @@ export function useSpectraContract(account: string | null) {
 
         console.log("[v0] Transaction hash:", hash)
 
-        const receipt = await publicClient.waitForTransactionReceipt({ hash })
-        console.log("[v0] Transaction confirmed:", receipt)
+        const receipt = await Promise.race([
+          publicClient.waitForTransactionReceipt({ hash }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Transaction confirmation timeout")), 60000)),
+        ])
 
+        console.log("[v0] Transaction confirmed:", receipt)
         return receipt
       } catch (err: any) {
-        const errorMsg = err.message || "Failed to choose color"
-        setError(errorMsg)
         console.error("[v0] Error choosing color:", err)
+
+        let errorMsg = err.message || "Failed to choose color"
+        if (errorMsg.includes("eth_chainId")) {
+          errorMsg = "Network connection failed. Please check your internet connection."
+        } else if (errorMsg.includes("timeout")) {
+          errorMsg = "Transaction took too long. Please try again."
+        }
+
+        setError(errorMsg)
         throw err
       } finally {
         setLoading(false)
@@ -95,6 +121,7 @@ export function useSpectraContract(account: string | null) {
     setError(null)
 
     try {
+      console.log("[v0] Claiming reward")
       const walletClient = getWalletClient(account as `0x${string}`)
 
       const hash = await walletClient.writeContract({
@@ -105,14 +132,24 @@ export function useSpectraContract(account: string | null) {
 
       console.log("[v0] Transaction hash:", hash)
 
-      const receipt = await publicClient.waitForTransactionReceipt({ hash })
-      console.log("[v0] Transaction confirmed:", receipt)
+      const receipt = await Promise.race([
+        publicClient.waitForTransactionReceipt({ hash }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Transaction confirmation timeout")), 60000)),
+      ])
 
+      console.log("[v0] Transaction confirmed:", receipt)
       return receipt
     } catch (err: any) {
-      const errorMsg = err.message || "Failed to claim reward"
-      setError(errorMsg)
       console.error("[v0] Error claiming reward:", err)
+
+      let errorMsg = err.message || "Failed to claim reward"
+      if (errorMsg.includes("eth_chainId")) {
+        errorMsg = "Network connection failed. Please check your internet connection."
+      } else if (errorMsg.includes("timeout")) {
+        errorMsg = "Transaction took too long. Please try again."
+      }
+
+      setError(errorMsg)
       throw err
     } finally {
       setLoading(false)
@@ -123,6 +160,7 @@ export function useSpectraContract(account: string | null) {
     if (!account) return null
 
     try {
+      console.log("[v0] Fetching game state for:", account)
       const result = await publicClient.readContract({
         address: SPECTRA_CONTRACT_ADDRESS as `0x${string}`,
         abi: SPECTRA_ABI,
@@ -149,6 +187,7 @@ export function useSpectraContract(account: string | null) {
     if (!account) return "0"
 
     try {
+      console.log("[v0] Fetching potential reward for:", account)
       const result = await publicClient.readContract({
         address: SPECTRA_CONTRACT_ADDRESS as `0x${string}`,
         abi: SPECTRA_ABI,
