@@ -110,7 +110,7 @@ Explorer: https://shannon-explorer.somnia.network
 - **Input:** Player address
 - **Output:** GameSession struct
 - **Returns:**
-  ```solidity
+  \`\`\`solidity
   {
     address player,
     uint256 stake,
@@ -132,7 +132,7 @@ Explorer: https://shannon-explorer.somnia.network
 
 ### Events
 
-```solidity
+\`\`\`solidity
 event GameStarted(address indexed player, uint256 stake);
 event ColorChosen(address indexed player, uint8 colorId, bool survived, uint8 randomColor);
 event RoundSurvived(address indexed player, uint256 newScore, uint256 potentialReward);
