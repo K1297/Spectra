@@ -8,26 +8,87 @@ import { GameBoard } from "@/components/game-board"
 export default function Home() {
   const [account, setAccount] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Check if wallet is already connected
     const checkConnection = async () => {
-      if (typeof window !== "undefined" && window.ethereum) {
-        try {
+      try {
+        if (typeof window !== "undefined" && window.ethereum) {
+          // First check if we have a saved account in localStorage
+          const savedAccount = localStorage.getItem("spectral_connected_account")
+
+          // Get current connected accounts
           const accounts = await window.ethereum.request({
             method: "eth_accounts",
           })
+
           if (accounts.length > 0) {
-            setAccount(accounts[0])
+            // If there are connected accounts, use the first one
+            const connectedAccount = accounts[0]
+            setAccount(connectedAccount)
+            // Save to localStorage for persistence
+            localStorage.setItem("spectral_connected_account", connectedAccount)
+          } else if (savedAccount) {
+            // If no accounts connected but we have a saved one, try to reconnect
+            try {
+              const requestedAccounts = await window.ethereum.request({
+                method: "eth_requestAccounts",
+              })
+              if (requestedAccounts.length > 0) {
+                setAccount(requestedAccounts[0])
+                localStorage.setItem("spectral_connected_account", requestedAccounts[0])
+              } else {
+                // Clear saved account if reconnection fails
+                localStorage.removeItem("spectral_connected_account")
+              }
+            } catch (error) {
+              // User rejected, clear saved account
+              localStorage.removeItem("spectral_connected_account")
+            }
           }
-        } catch (error) {
-          console.error("Error checking connection:", error)
         }
+      } catch (error) {
+        console.error("[v0] Error checking connection:", error)
+      } finally {
+        setIsLoading(false)
       }
     }
 
     checkConnection()
+
+    if (typeof window !== "undefined" && window.ethereum) {
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setAccount(accounts[0])
+          localStorage.setItem("spectral_connected_account", accounts[0])
+        } else {
+          setAccount(null)
+          localStorage.removeItem("spectral_connected_account")
+        }
+      }
+
+      window.ethereum.on("accountsChanged", handleAccountsChanged)
+      return () => {
+        window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
+      }
+    }
   }, [])
+
+  const handleDisconnect = () => {
+    setAccount(null)
+    localStorage.removeItem("spectral_connected_account")
+  }
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-white overflow-hidden flex items-center justify-center">
+        <div className="text-center">
+          <SpectraLogo />
+          <p className="text-purple-300 mt-4">Loading...</p>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-white overflow-hidden">
@@ -54,7 +115,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="w-full max-w-2xl">
-            <GameBoard account={account} />
+            <GameBoard account={account} onDisconnect={handleDisconnect} />
           </div>
         )}
 

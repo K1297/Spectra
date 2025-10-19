@@ -18,9 +18,10 @@ const COLORS = [
 
 interface GameBoardProps {
   account: string
+  onDisconnect?: () => void
 }
 
-export function GameBoard({ account }: GameBoardProps) {
+export function GameBoard({ account, onDisconnect }: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [stakeAmount, setStakeAmount] = useState("0.01")
   const [selectedColor, setSelectedColor] = useState<number | null>(null)
