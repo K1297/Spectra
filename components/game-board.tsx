@@ -69,18 +69,29 @@ export function GameBoard({ account }: GameBoardProps) {
         throw new Error("Stake must be at least 0.01 STT")
       }
 
-      await startGame(stakeAmount)
+      const receipt = await startGame(stakeAmount)
+      console.log("[v0] Transaction receipt:", receipt)
 
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+      let state = null
+      let retries = 0
+      const maxRetries = 5
 
-      const state = await getGameState()
-      console.log("[v0] Game state after start:", state)
+      while (!state?.active && retries < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+        state = await getGameState()
+        console.log(`[v0] Attempt ${retries + 1}: Game state:`, state)
+        retries++
+      }
 
       if (state?.active) {
+        console.log("[v0] Game started successfully:", state)
         setGameState(state)
         setError(null)
       } else {
-        setError("Game failed to start. Please check the console for details and try again.")
+        console.error("[v0] Game state not active after retries:", state)
+        setError(
+          "Game transaction confirmed but state not updated. This may be a blockchain sync issue. Please refresh the page.",
+        )
       }
     } catch (err: any) {
       console.error("[v0] Error in handleStartGame:", err)

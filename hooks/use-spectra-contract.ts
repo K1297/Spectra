@@ -195,17 +195,30 @@ export function useSpectraContract(account: string | null) {
         args: [account as `0x${string}`],
       })
 
-      console.log("[v0] Game state:", result)
+      console.log("[v0] Raw game state result:", result)
+      console.log("[v0] Result type:", typeof result)
+      console.log("[v0] Result is array:", Array.isArray(result))
 
-      return {
-        player: result[0],
-        stake: formatEther(result[1]),
-        score: Number(result[2]),
-        active: result[3],
-        lastRoundTimestamp: Number(result[4]),
+      const gameData = Array.isArray(result) ? result : Object.values(result || {})
+
+      if (!gameData || gameData.length < 5) {
+        console.warn("[v0] Invalid game state data:", gameData)
+        return null
+      }
+
+      const gameState = {
+        player: gameData[0],
+        stake: formatEther(gameData[1]),
+        score: Number(gameData[2]),
+        active: Boolean(gameData[3]),
+        lastRoundTimestamp: Number(gameData[4]),
       } as GameState
+
+      console.log("[v0] Parsed game state:", gameState)
+      return gameState
     } catch (err: any) {
       console.error("[v0] Error fetching game state:", err)
+      console.error("[v0] Error details:", err.message)
       return null
     }
   }, [account])
