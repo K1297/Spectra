@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { ColorButton } from "@/components/color-button"
-import { GameStats } from "@/components/game-stats"
-import { GameResult } from "@/components/game-result"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useSpectraContract, type GameState } from "@/hooks/use-spectra-contract"
+import { useChromaticMystery, type MysteryState } from "@/hooks/use-chromatic-mystery"
+import { formatEther } from "viem"
 
 const COLORS = [
   { id: 1, name: "Red", hex: "#ff4444" },
@@ -16,63 +15,65 @@ const COLORS = [
   { id: 5, name: "Violet", hex: "#ff44ff" },
 ]
 
-interface GameBoardProps {
+interface MysteryBoardProps {
   account: string
   onDisconnect?: () => void
   onBackToZone?: () => void
 }
 
-export function GameBoard({ account, onDisconnect, onBackToZone }: GameBoardProps) {
-  const [gameState, setGameState] = useState<GameState | null>(null)
+export function MysteryBoard({ account, onDisconnect, onBackToZone }: MysteryBoardProps) {
+  const [gameState, setGameState] = useState<MysteryState | null>(null)
   const [stakeAmount, setStakeAmount] = useState("0.01")
   const [selectedColor, setSelectedColor] = useState<number | null>(null)
-  const [result, setResult] = useState<{ survived: boolean; message: string } | null>(null)
+  const [result, setResult] = useState<{ correct: boolean; message: string } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [potentialReward, setPotentialReward] = useState("0")
 
   const {
-    startGame,
-    chooseColor,
-    claimReward,
-    getGameState,
-    getPotentialReward,
+    startMystery,
+    guessMysteryColor,
+    claimMysteryReward,
+    getMysteryState,
+    getPotentialMysteryReward,
     loading,
     error: contractError,
-  } = useSpectraContract(account)
+  } = useChromaticMystery(account)
 
   // Fetch game state on mount and periodically
   useEffect(() => {
     const fetchGameState = async () => {
-      const state = await getGameState()
+      const state = await getMysteryState()
       setGameState(state)
+      if (state) {
+        const reward = await getPotentialMysteryReward()
+        setPotentialReward(reward)
+      }
     }
 
     fetchGameState()
-    const interval = setInterval(fetchGameState, 5000) // Refresh every 5 seconds
+    const interval = setInterval(fetchGameState, 5000)
 
     return () => clearInterval(interval)
-  }, [getGameState])
+  }, [getMysteryState, getPotentialMysteryReward])
 
-  // Update error from contract
   useEffect(() => {
     if (contractError) {
       setError(contractError)
     }
   }, [contractError])
 
-  const handleStartGame = async () => {
+  const handleStartMystery = async () => {
     setError(null)
     setIsLoading(true)
     setResult(null)
 
     try {
-      console.log("[v0] handleStartGame called with stake:", stakeAmount)
       if (!stakeAmount || Number.parseFloat(stakeAmount) < 0.01) {
         throw new Error("Stake must be at least 0.01 STT")
       }
 
-      const receipt = await startGame(stakeAmount)
-      console.log("[v0] Transaction receipt:", receipt)
+      await startMystery(stakeAmount)
 
       let state = null
       let retries = 0
@@ -80,31 +81,24 @@ export function GameBoard({ account, onDisconnect, onBackToZone }: GameBoardProp
 
       while (!state?.active && retries < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, 2000))
-        state = await getGameState()
-        console.log(`[v0] Attempt ${retries + 1}: Game state:`, state)
+        state = await getMysteryState()
         retries++
       }
 
       if (state?.active) {
-        console.log("[v0] Game started successfully:", state)
         setGameState(state)
         setError(null)
       } else {
-        console.error("[v0] Game state not active after retries:", state)
-        setError(
-          "Game transaction confirmed but state not updated. This may be a blockchain sync issue. Please refresh the page.",
-        )
+        setError("Failed to start mystery game. Please try again.")
       }
     } catch (err: any) {
-      console.error("[v0] Error in handleStartGame:", err)
-      const errorMsg = err.message || "Failed to start game. Please check your connection and try again."
-      setError(errorMsg)
+      setError(err.message || "Failed to start mystery game")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleChooseColor = async (colorId: number) => {
+  const handleGuessColor = async (colorId: number) => {
     if (!gameState?.active) return
 
     setError(null)
@@ -112,31 +106,26 @@ export function GameBoard({ account, onDisconnect, onBackToZone }: GameBoardProp
     setSelectedColor(colorId)
 
     try {
-      await chooseColor(colorId)
+      await guessMysteryColor(colorId)
 
-      // Wait a moment for blockchain to update
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      // Fetch updated game state
-      const state = await getGameState()
+      const state = await getMysteryState()
       setGameState(state)
 
       if (state?.active) {
-        // Survived
-        const reward = await getPotentialReward()
         setResult({
-          survived: true,
-          message: `Correct! You chose ${COLORS[colorId - 1].name}. Score: ${state.score}. Potential Reward: ${reward} STT`,
+          correct: true,
+          message: `Correct! You chose ${COLORS[colorId - 1].name}. Progress: ${state.sequenceProgress}/${state.mysterySequence.length}`,
         })
       } else {
-        // Lost
         setResult({
-          survived: false,
-          message: `Wrong! Game Over! Final Score: ${state?.score || 0}`,
+          correct: false,
+          message: `Wrong! Game Over! Mysteries Solved: ${state?.score || 0}`,
         })
       }
     } catch (err: any) {
-      setError(err.message || "Failed to choose color")
+      setError(err.message || "Failed to submit guess")
     } finally {
       setIsLoading(false)
     }
@@ -147,14 +136,13 @@ export function GameBoard({ account, onDisconnect, onBackToZone }: GameBoardProp
     setIsLoading(true)
 
     try {
-      await claimReward()
+      await claimMysteryReward()
 
       setResult({
-        survived: true,
-        message: `Reward claimed successfully!`,
+        correct: true,
+        message: "Reward claimed successfully!",
       })
 
-      // Reset game state
       setGameState(null)
       setSelectedColor(null)
     } catch (err: any) {
@@ -173,13 +161,30 @@ export function GameBoard({ account, onDisconnect, onBackToZone }: GameBoardProp
   return (
     <div className="space-y-6">
       {/* Game Stats */}
-      <GameStats gameState={gameState} account={account} />
+      <div className="grid grid-cols-4 gap-3">
+        <div className="bg-gradient-to-br from-red-900/50 to-red-800/50 border border-red-500/30 rounded-lg p-4 text-center">
+          <p className="text-xs text-red-300 mb-1">Status</p>
+          <p className="text-lg font-bold text-red-200">{gameState?.active ? "Active" : "Idle"}</p>
+        </div>
+        <div className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 border border-blue-500/30 rounded-lg p-4 text-center">
+          <p className="text-xs text-blue-300 mb-1">Stake</p>
+          <p className="text-lg font-bold text-blue-200">{gameState ? formatEther(gameState.stake) : "0"} STT</p>
+        </div>
+        <div className="bg-gradient-to-br from-purple-900/50 to-purple-800/50 border border-purple-500/30 rounded-lg p-4 text-center">
+          <p className="text-xs text-purple-300 mb-1">Mysteries Solved</p>
+          <p className="text-lg font-bold text-purple-200">{gameState?.score || 0}</p>
+        </div>
+        <div className="bg-gradient-to-br from-green-900/50 to-green-800/50 border border-green-500/30 rounded-lg p-4 text-center">
+          <p className="text-xs text-green-300 mb-1">Potential Reward</p>
+          <p className="text-lg font-bold text-green-200">{potentialReward} STT</p>
+        </div>
+      </div>
 
       {/* Main Game Area */}
       <div className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 border border-purple-500/30 rounded-lg p-8 backdrop-blur-sm">
         {!gameState?.active ? (
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-center mb-6">Start Your Game</h2>
+            <h2 className="text-2xl font-bold text-center mb-6">Start Chromatic Mystery</h2>
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-purple-200">Stake Amount (STT)</label>
@@ -195,33 +200,48 @@ export function GameBoard({ account, onDisconnect, onBackToZone }: GameBoardProp
             </div>
 
             <Button
-              onClick={handleStartGame}
+              onClick={handleStartMystery}
               disabled={isLoading || loading || !stakeAmount}
-              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-3 rounded-lg transition-all duration-200"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 rounded-lg"
             >
-              {isLoading || loading ? "Starting..." : "Start Game"}
+              {isLoading || loading ? "Starting..." : "Start Mystery"}
             </Button>
           </div>
         ) : (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-center">Choose a Color</h2>
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-2">Solve the Mystery</h2>
+              <p className="text-purple-300">
+                Progress: {gameState.sequenceProgress}/{gameState.mysterySequence.length}
+              </p>
+            </div>
 
             <div className="grid grid-cols-5 gap-3">
               {COLORS.map((color) => (
                 <ColorButton
                   key={color.id}
                   color={color}
-                  onClick={() => handleChooseColor(color.id)}
+                  onClick={() => handleGuessColor(color.id)}
                   disabled={isLoading || loading || result !== null}
                   selected={selectedColor === color.id}
                 />
               ))}
             </div>
 
-            {result && <GameResult result={result} />}
+            {result && (
+              <div
+                className={`p-4 rounded-lg border ${
+                  result.correct
+                    ? "bg-green-900/50 border-green-500/50 text-green-200"
+                    : "bg-red-900/50 border-red-500/50 text-red-200"
+                }`}
+              >
+                <p className="text-center font-semibold">{result.message}</p>
+              </div>
+            )}
 
             <div className="flex gap-3">
-              {result?.survived && gameState.active && (
+              {result?.correct && gameState.active && (
                 <Button
                   onClick={() => {
                     setResult(null)
@@ -229,7 +249,7 @@ export function GameBoard({ account, onDisconnect, onBackToZone }: GameBoardProp
                   }}
                   className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
-                  Next Round
+                  Next Guess
                 </Button>
               )}
 

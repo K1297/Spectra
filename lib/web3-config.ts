@@ -46,3 +46,15 @@ export const getWalletClient = (account: `0x${string}`) => {
     transport: custom(window.ethereum),
   })
 }
+
+export const walletClient = () => {
+  if (typeof window === "undefined" || !window.ethereum) {
+    throw new Error("MetaMask not available")
+  }
+
+  // Get the current account from MetaMask
+  return createWalletClient({
+    chain: somniaChain,
+    transport: custom(window.ethereum),
+  })
+}
