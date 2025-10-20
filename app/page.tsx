@@ -4,14 +4,11 @@ import { useState, useEffect } from "react"
 import { SpectraLogo } from "@/components/spectra-logo"
 import { WalletConnect } from "@/components/wallet-connect"
 import { GameBoard } from "@/components/game-board"
-import { SpectraZone } from "@/components/spectra-zone"
-import { MysteryBoard } from "@/components/mystery-board"
 
 export default function Home() {
   const [account, setAccount] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [selectedGame, setSelectedGame] = useState<string | null>(null)
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -80,7 +77,6 @@ export default function Home() {
   const handleDisconnect = () => {
     setAccount(null)
     localStorage.removeItem("spectral_connected_account")
-    setSelectedGame(null)
   }
 
   if (isLoading) {
@@ -117,21 +113,9 @@ export default function Home() {
           <div className="w-full max-w-md">
             <WalletConnect onConnect={setAccount} onConnecting={setIsConnecting} />
           </div>
-        ) : selectedGame === "spectrum-survival" ? (
-          <div className="w-full max-w-2xl">
-            <GameBoard account={account} onDisconnect={handleDisconnect} onBackToZone={() => setSelectedGame(null)} />
-          </div>
-        ) : selectedGame === "chromatic-mystery" ? (
-          <div className="w-full max-w-2xl">
-            <MysteryBoard
-              account={account}
-              onDisconnect={handleDisconnect}
-              onBackToZone={() => setSelectedGame(null)}
-            />
-          </div>
         ) : (
-          <div className="w-full max-w-4xl">
-            <SpectraZone account={account} onSelectGame={setSelectedGame} onDisconnect={handleDisconnect} />
+          <div className="w-full max-w-2xl">
+            <GameBoard account={account} onDisconnect={handleDisconnect} />
           </div>
         )}
 

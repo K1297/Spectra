@@ -19,10 +19,9 @@ const COLORS = [
 interface GameBoardProps {
   account: string
   onDisconnect?: () => void
-  onBackToZone?: () => void
 }
 
-export function GameBoard({ account, onDisconnect, onBackToZone }: GameBoardProps) {
+export function GameBoard({ account, onDisconnect }: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [stakeAmount, setStakeAmount] = useState("0.01")
   const [selectedColor, setSelectedColor] = useState<number | null>(null)
@@ -260,18 +259,6 @@ export function GameBoard({ account, onDisconnect, onBackToZone }: GameBoardProp
         <Alert className="bg-red-900/50 border-red-500/50">
           <AlertDescription className="text-red-200">{error}</AlertDescription>
         </Alert>
-      )}
-
-      {onBackToZone && (
-        <div className="flex justify-center pt-4">
-          <Button
-            onClick={onBackToZone}
-            variant="outline"
-            className="border-purple-500/30 text-purple-300 hover:bg-purple-900/20 bg-transparent"
-          >
-            Back to Spectra Zone
-          </Button>
-        </div>
       )}
     </div>
   )
