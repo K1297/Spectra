@@ -9,13 +9,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  webpack: (config, { isServer }) => {
-    config.module.rules.push({
-      test: /\.sol$/,
-      use: 'ignore-loader',
-    });
-    return config;
-  },
 }
 
 export default nextConfig

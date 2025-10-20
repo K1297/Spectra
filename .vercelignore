@@ -1,18 +1,13 @@
-# Solidity contracts - not needed for frontend deployment
+# Solidity contracts
 contracts/
 *.sol
 
 # Documentation
 *.md
-GAME_STRATEGY.md
-README.md
-DEPLOYMENT_GUIDE.md
-ARCHITECTURE.md
 
-# Development files
+# Development
 .git
 .gitignore
-node_modules
 .env.local
 .env.*.local
 
@@ -20,5 +15,5 @@ node_modules
 .DS_Store
 Thumbs.db
 
-# Lock files (optional - Vercel can handle these)
+# Lock files
 pnpm-lock.yaml
