@@ -160,7 +160,7 @@ See [GAME_STRATEGY.md](GAME_STRATEGY.md) for detailed strategy analysis.
 - Transaction timeout protection (60 seconds)
 - Network validation before transactions
 
-** Warning:** This is a testnet demonstration. The on-chain randomness using `block.prevrandao` is not suitable for production mainnet gambling applications.
+**Warning:** This is a testnet demonstration. The on-chain randomness using `block.prevrandao` is not suitable for production mainnet gambling applications.
 
 ##  Usage Examples
 
